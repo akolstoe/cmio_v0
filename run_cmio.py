@@ -26,7 +26,6 @@ def _ensure_dependencies() -> None:
         )
         print(message)
         raise SystemExit(1)
-from app import app
 
 
 def _open_browser(port: int) -> None:
