@@ -1,0 +1,189 @@
+{% extends 'layout.html' %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">Unified coordination hub</p>
+    <h1>Morning dashboard</h1>
+    <p class="subtitle">
+      Approve pending facts, finalize encounter notes, and pick your AI model—all in a calm, pastel workspace.
+    </p>
+    <div class="stats">
+      <div class="stat-card">
+        <p class="label">Pending facts</p>
+        <p class="value">{{ stats.pending_facts }}</p>
+      </div>
+      <div class="stat-card">
+        <p class="label">Notes to review</p>
+        <p class="value">{{ stats.draft_notes }}</p>
+      </div>
+      <div class="stat-card">
+        <p class="label">Open tasks</p>
+        <p class="value">{{ stats.open_tasks }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="glow-card">
+    <p class="label">Today's focus</p>
+    <ul>
+      <li>Approve facts pulled from overnight messages</li>
+      <li>Promote encounter notes into case notes</li>
+      <li>Finish 30-minute task plan</li>
+    </ul>
+  </div>
+</section>
+
+<section id="messages" class="panel-grid">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Message stream</p>
+        <h3>Unified Communication Hub</h3>
+      </div>
+      <span class="chip">Live</span>
+    </div>
+    <div class="list">
+      {% for message in messages %}
+      <div class="list-row">
+        <div class="avatar">{{ message.sender[0] }}</div>
+        <div>
+          <p class="label">{{ message.type }} {% if message.channel %}· #{{ message.channel }}{% endif %}</p>
+          <p class="list-title">{{ message.summary }}</p>
+          <p class="muted">Client: {{ message.client }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div id="facts" class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">AI extracted</p>
+        <h3>Pending facts</h3>
+      </div>
+      <span class="chip">Human approval</span>
+    </div>
+    <div class="list">
+      {% for fact in pending_facts %}
+      <div class="list-row fact">
+        <div>
+          <p class="list-title">{{ fact.value }}</p>
+          <p class="muted">{{ fact.client }} · Security: {{ fact.security }}</p>
+        </div>
+        <div class="actions">
+          <form action="{{ url_for('update_fact', fact_id=fact.id, action='approve') }}" method="post">
+            <button class="btn primary" {% if fact.status != 'pending' %}disabled{% endif %}>Approve</button>
+          </form>
+          <form action="{{ url_for('update_fact', fact_id=fact.id, action='reject') }}" method="post">
+            <button class="btn ghost" {% if fact.status != 'pending' %}disabled{% endif %}>Reject</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section id="notes" class="panel-grid">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Step 1</p>
+        <h3>Encounter notes</h3>
+      </div>
+      <span class="chip">Drafts</span>
+    </div>
+    <div class="list">
+      {% for note in encounter_notes %}
+      <div class="list-row note">
+        <div>
+          <p class="list-title">{{ note.summary }}</p>
+          <p class="muted">{{ note.client }} · {{ note.status|replace('_', ' ') }}</p>
+          <p class="body">{{ note.details }}</p>
+        </div>
+        <form action="{{ url_for('promote_note', note_id=note.id) }}" method="post">
+          <button class="btn primary" {% if note.status == 'approved' %}disabled{% endif %}>
+            Promote to case note
+          </button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Step 2</p>
+        <h3>Case notes</h3>
+      </div>
+      <span class="chip">Finalized</span>
+    </div>
+    <div class="list">
+      {% if case_notes %}
+        {% for note in case_notes %}
+        <div class="list-row">
+          <div>
+            <p class="list-title">{{ note.client }}</p>
+            <p class="muted">Finalized at {{ note.finalized_at.strftime('%b %d, %H:%M') }}</p>
+            <p class="body">{{ note.body }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="muted">No case notes yet — promote a draft to finalize.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section id="tasks" class="panel-grid">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Time-blocked</p>
+        <h3>Task breakdowns</h3>
+      </div>
+      <span class="chip">Morning plan</span>
+    </div>
+    <div class="list">
+      {% for task in tasks %}
+      <div class="list-row">
+        <div>
+          <p class="list-title">{{ task.title }}</p>
+          <p class="muted">{{ task.client }} · {{ task.estimate }} minutes</p>
+          <div class="steps">
+            {% for step in task.steps %}
+            <form action="{{ url_for('toggle_step', task_id=task.id, step_index=loop.index0) }}" method="post">
+              <button class="step {% if step.done %}done{% endif %}">
+                <span class="dot"></span>{{ step.label }}
+              </button>
+            </form>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div id="models" class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">AI posture</p>
+        <h3>Model selector</h3>
+      </div>
+      <span class="chip">Local-first</span>
+    </div>
+    <form class="model-grid" action="{{ url_for('select_model') }}" method="post">
+      {% for model in model_options %}
+      <label class="model-card {% if selected_model == model.id %}selected{% endif %}">
+        <input type="radio" name="model" value="{{ model.id }}" {% if selected_model == model.id %}checked{% endif %} />
+        <div>
+          <p class="list-title">{{ model.label }}</p>
+          <p class="muted">Latency: {{ model.latency }}</p>
+        </div>
+      </label>
+      {% endfor %}
+      <button class="btn primary">Save selection</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
