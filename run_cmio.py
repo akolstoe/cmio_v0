@@ -12,6 +12,20 @@ import threading
 import webbrowser
 from pathlib import Path
 
+
+def _ensure_dependencies() -> None:
+    """Validate Flask is available and provide clear install guidance."""
+
+    try:
+        import flask  # noqa: F401
+    except ModuleNotFoundError:
+        message = (
+            "CMIO requires Flask. Install dependencies first with:\n"
+            "  python -m pip install -r requirements.txt\n"
+            "Then re-run: python run_cmio.py"
+        )
+        print(message)
+        raise SystemExit(1)
 from app import app
 
 
@@ -24,6 +38,10 @@ def _open_browser(port: int) -> None:
 def main(port: int = 8000) -> None:
     base_dir = Path(__file__).resolve().parent
     os.chdir(base_dir)
+
+    _ensure_dependencies()
+
+    from app import app
 
     threading.Timer(1.0, _open_browser, args=(port,)).start()
     app.run(host="0.0.0.0", port=port, debug=False)
